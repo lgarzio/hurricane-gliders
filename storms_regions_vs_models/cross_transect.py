@@ -12,16 +12,18 @@ from matplotlib import pyplot as plt
 import cmocean as cmo
 import functions.cmems as cmems
 import functions.common as cf
-import functions.plotting as pf
 import functions.gofs as gofs
 import functions.rtofs as rtofs
 plt.rcParams.update({'font.size': 14})
 
 
-def plot_xsection(xdata, ydata, cdata, colormap, kwargs, ttl, ylab, xlab, clab, savefile, ylims=None):
+def plot_xsection(xdata, ydata, cdata, colormap, ttl, ylab, xlab, clab, savefile, kwargs=None, ylims=None):
     fig, ax = plt.subplots(figsize=(12, 6))
 
-    cs = plt.contourf(xdata, ydata, cdata, cmap=colormap, **kwargs)
+    if kwargs:
+        cs = plt.contourf(xdata, ydata, cdata, cmap=colormap, **kwargs)
+    else:
+        cs = plt.contourf(xdata, ydata, cdata, cmap=colormap)
     plt.colorbar(cs, ax=ax, label=clab, pad=0.02)
     plt.contour(xdata, ydata, cdata, [26], colors='k')
     plt.title(ttl)
@@ -52,11 +54,9 @@ def main(stime, etime, stm, sDir):
     targetlon, targetlat = cf.return_target_transect(tlon, tlat)
 
     # get data from each model closest to the hurricane track and plot the transect
+    # PLOT TEMPERATURE
     min_valt = 6
     max_valt = 32
-
-    min_vals = 33
-    max_vals = 37.1
 
     # plot GOFS transect closest to the hurricane track
     print('\nRetrieving GOFS water temp transect')
@@ -74,13 +74,13 @@ def main(stime, etime, stm, sDir):
     # plot GOFS cross section 0-300m
     ylimits = [0, 300]
     savefile = os.path.join(sDir, '{}_GOFS_transect_temp_300.png'.format(stm))
-    plot_xsection(GOFS_lon_subset, GOFS_depth, GOFS_targettemp, color, kw, plt_ttl, ylabel, xlabel, clabel, savefile,
+    plot_xsection(GOFS_lon_subset, GOFS_depth, GOFS_targettemp, color, plt_ttl, ylabel, xlabel, clabel, savefile, kw,
                   ylimits)
 
     # plot GOFS cross section 0-500m
     ylimits = [0, 500]
     savefile = os.path.join(sDir, '{}_GOFS_transect_temp_500.png'.format(stm))
-    plot_xsection(GOFS_lon_subset, GOFS_depth, GOFS_targettemp, color, kw, plt_ttl, ylabel, xlabel, clabel, savefile,
+    plot_xsection(GOFS_lon_subset, GOFS_depth, GOFS_targettemp, color, plt_ttl, ylabel, xlabel, clabel, savefile, kw,
                   ylimits)
 
     # plot RTOFS transect closest to the hurricane track
@@ -92,13 +92,13 @@ def main(stime, etime, stm, sDir):
     plt_ttl = 'RTOFS Transect on ' + stime.strftime('%Y-%m-%d %H:%M')
     ylimits = [0, 300]
     savefile = os.path.join(sDir, '{}_RTOFS_transect_temp_300.png'.format(stm))
-    plot_xsection(RTOFS_lon_subset, RTOFS_depth, RTOFS_targettemp, color, kw, plt_ttl, ylabel, xlabel, clabel, savefile,
+    plot_xsection(RTOFS_lon_subset, RTOFS_depth, RTOFS_targettemp, color, plt_ttl, ylabel, xlabel, clabel, savefile, kw,
                   ylimits)
 
     # plot RTOFS cross section 0-500m
     ylimits = [0, 500]
     savefile = os.path.join(sDir, '{}_RTOFS_transect_temp_500.png'.format(stm))
-    plot_xsection(RTOFS_lon_subset, RTOFS_depth, RTOFS_targettemp, color, kw, plt_ttl, ylabel, xlabel, clabel, savefile,
+    plot_xsection(RTOFS_lon_subset, RTOFS_depth, RTOFS_targettemp, color, plt_ttl, ylabel, xlabel, clabel, savefile, kw,
                   ylimits)
 
     ## plot RTOFS-DA transect closest to the hurricane track
@@ -112,14 +112,80 @@ def main(stime, etime, stm, sDir):
     plt_ttl = 'RTOFS-DA Transect on ' + stime.strftime('%Y-%m-%d %H:%M')
     ylimits = [0, 300]
     savefile = os.path.join(sDir, '{}_RTOFSDA_transect_temp_300.png'.format(stm))
-    plot_xsection(RTOFSDA_lon_subset, RTOFSDA_depth, RTOFSDA_targettemp, color, kw, plt_ttl, ylabel, xlabel, clabel,
-                  savefile, ylimits)
+    plot_xsection(RTOFSDA_lon_subset, RTOFSDA_depth, RTOFSDA_targettemp, color, plt_ttl, ylabel, xlabel, clabel,
+                  savefile, kw, ylimits)
 
     # plot RTOFS-DA cross section 0-500m
     ylimits = [0, 500]
     savefile = os.path.join(sDir, '{}_RTOFSDA_transect_temp_500.png'.format(stm))
-    plot_xsection(RTOFSDA_lon_subset, RTOFSDA_depth, RTOFSDA_targettemp, color, kw, plt_ttl, ylabel, xlabel, clabel,
-                  savefile, ylimits)
+    plot_xsection(RTOFSDA_lon_subset, RTOFSDA_depth, RTOFSDA_targettemp, color, plt_ttl, ylabel, xlabel, clabel,
+                  savefile, kw, ylimits)
+
+    # PLOT SALINITY
+    min_vals = 30
+    max_vals = 38
+
+    # plot GOFS transect closest to the hurricane track
+    print('\nRetrieving GOFS salinity transect')
+    # Convert longitude to GOFS convention
+    GOFS_targetsalt, GOFS_depth, GOFS_lon_subset, GOFS_lat_subset = gofs.return_transect('salinity', stime, etime,
+                                                                                         target_lonGOFS, targetlat)
+    color = cmo.cm.haline
+    kw = dict(levels=np.arange(min_vals, max_vals))
+    plt_ttl = 'GOFS Transect on ' + stime.strftime('%Y-%m-%d %H:%M')
+    ylabel = 'Depth (m)'
+    xlabel = 'Longitude'
+    clabel = 'Salinity'
+
+    # plot GOFS cross section 0-300m
+    ylimits = [0, 300]
+    savefile = os.path.join(sDir, '{}_GOFS_transect_salt_300.png'.format(stm))
+    plot_xsection(GOFS_lon_subset, GOFS_depth, GOFS_targetsalt, color, plt_ttl, ylabel, xlabel, clabel, savefile, kw,
+                  ylimits)
+
+    # plot GOFS cross section 0-500m
+    ylimits = [0, 500]
+    savefile = os.path.join(sDir, '{}_GOFS_transect_salt_500.png'.format(stm))
+    plot_xsection(GOFS_lon_subset, GOFS_depth, GOFS_targetsalt, color, plt_ttl, ylabel, xlabel, clabel, savefile, kw,
+                  ylimits)
+
+    # plot RTOFS transect closest to the hurricane track
+    print('\nRetrieving RTOFS salinity transect')
+    RTOFS_targetsalt, RTOFS_depth, RTOFS_lon_subset, RTOFS_lat_subset = rtofs.return_transect('salinity', stime,
+                                                                                              etime, targetlon,
+                                                                                              targetlat, 'RTOFS')
+    # plot RTOFS cross section 0-300m
+    plt_ttl = 'RTOFS Transect on ' + stime.strftime('%Y-%m-%d %H:%M')
+    ylimits = [0, 300]
+    savefile = os.path.join(sDir, '{}_RTOFS_transect_salt_300.png'.format(stm))
+    plot_xsection(RTOFS_lon_subset, RTOFS_depth, RTOFS_targetsalt, color, plt_ttl, ylabel, xlabel, clabel, savefile,
+                  kw, ylimits)
+
+    # plot RTOFS cross section 0-500m
+    ylimits = [0, 500]
+    savefile = os.path.join(sDir, '{}_RTOFS_transect_salt_500.png'.format(stm))
+    plot_xsection(RTOFS_lon_subset, RTOFS_depth, RTOFS_targetsalt, color, plt_ttl, ylabel, xlabel, clabel, savefile,
+                  kw, ylimits)
+
+    ## plot RTOFS-DA transect closest to the hurricane track
+    print('\nRetrieving RTOFS-DA salinity transect')
+    RTOFSDA_targetsalt, RTOFSDA_depth, RTOFSDA_lon_subset, RTOFSDA_lat_subset = rtofs.return_transect('salinity',
+                                                                                                      stime, etime,
+                                                                                                      targetlon,
+                                                                                                      targetlat,
+                                                                                                      'RTOFS-DA')
+    # plot RTOFS-DA cross section 0-300m
+    plt_ttl = 'RTOFS-DA Transect on ' + stime.strftime('%Y-%m-%d %H:%M')
+    ylimits = [0, 300]
+    savefile = os.path.join(sDir, '{}_RTOFSDA_transect_salt_300.png'.format(stm))
+    plot_xsection(RTOFSDA_lon_subset, RTOFSDA_depth, RTOFSDA_targetsalt, color, plt_ttl, ylabel, xlabel, clabel,
+                  savefile, kw, ylimits)
+
+    # plot RTOFS-DA cross section 0-500m
+    ylimits = [0, 500]
+    savefile = os.path.join(sDir, '{}_RTOFSDA_transect_salt_500.png'.format(stm))
+    plot_xsection(RTOFSDA_lon_subset, RTOFSDA_depth, RTOFSDA_targetsalt, color, plt_ttl, ylabel, xlabel, clabel,
+                  savefile, kw, ylimits)
 
 
 if __name__ == '__main__':
