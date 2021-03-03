@@ -40,6 +40,26 @@ def get_files(start_time, end_time, model):
     return file_list
 
 
+def return_point(varname, start_time, end_time, target_lon, target_lat, model):
+    filenames = get_files(start_time, end_time, model)
+
+    ds = xr.open_dataset(filenames[0])
+    ds = ds.drop('Date')  # drop unnecessary coordinates
+    lat = ds.Latitude.values
+    lon = ds.Longitude.values
+
+    # Find the closest model point
+    # calculate the sum of the absolute value distance between the model location and selected profile location
+    a = abs(lat - target_lat) + abs(lon - target_lon)
+
+    # find the indices of the minimum value in the array calculated above
+    i, j = np.unravel_index(a.argmin(), a.shape)
+
+    target_ds = np.squeeze(ds[varname])[:, i, j]
+
+    return target_ds
+
+
 def return_sst(start_time, end_time, coordlims, model):
     """
     :param start_time: start time (datetime)

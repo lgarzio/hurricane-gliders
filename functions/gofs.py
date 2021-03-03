@@ -16,6 +16,8 @@ import netCDF4
 
 def convert_target_gofs_lon(target_lon):
     target_convert = np.array([])
+    if np.logical_or(isinstance(target_lon, float), isinstance(target_lon, int)):
+        target_lon = np.array([target_lon])
     for tc in target_lon:
         if tc < 0:
             target_convert = np.append(target_convert, 360 + tc)
@@ -26,6 +28,8 @@ def convert_target_gofs_lon(target_lon):
 
 def convert_gofs_target_lon(gofs_lon):
     gofslon_convert = np.array([])
+    if np.logical_or(isinstance(gofs_lon, float), isinstance(gofs_lon, int)):
+        gofs_lon = np.array([gofs_lon])
     for gl in gofs_lon:
         if gl > 180:
             gofslon_convert = np.append(gofslon_convert, gl - 360)
@@ -47,6 +51,22 @@ def get_ds(varname, st, et):
         print('figure out time slicing')
 
     return ds
+
+
+def return_point(varname, start_time, end_time, target_lon, target_lat):
+    ds = get_ds(varname, start_time, end_time)
+
+    lat = ds.lat.values
+    lon = ds.lon.values
+
+    # Find the closest model point
+    # calculate the absolute value distance between the model location and buoy location
+    lat_idx = np.argmin(abs(lat - target_lat))
+    lon_idx = np.argmin(abs(lon - target_lon))
+
+    target_ds = np.squeeze(ds[varname])[:, lat_idx, lon_idx]
+
+    return target_ds
 
 
 def return_sst(start_time, end_time, coordlims):

@@ -71,7 +71,17 @@ def main(stime, etime, region, stm, sDir):
     # plot part of track for model comparison
     ax.plot(targetlon, targetlat, c='k', marker='o', ms=3, linestyle='none', transform=ccrs.PlateCarree(),
             label='Model Comparison')
-    ax.legend(fontsize=8)
+
+    # add points for profile comparisons
+    profile_locs = [[-91.5, 26.5], [-85, 22.7]]
+    for pl in profile_locs:
+        ax.plot(pl[0], pl[1], c='w', marker='s', mec='k', ms=5, linestyle='none', transform=ccrs.PlateCarree(),
+                label='Profile Comparison')
+
+    handles, labels = plt.gca().get_legend_handles_labels()  # only show one set of legend labels
+    by_label = dict(zip(labels, handles))
+    ax.legend(by_label.values(), by_label.keys(), fontsize=8)
+    # ax.legend(fontsize=8)
 
     # add GOFS SST to map
     print('\nPlotting GOFS SST')
@@ -96,7 +106,16 @@ def main(stime, etime, region, stm, sDir):
     # plot part of track for model comparison
     ax.plot(targetlon, targetlat, c='k', marker='o', ms=3, linestyle='none', transform=ccrs.PlateCarree(),
             label='Model Comparison')
-    ax.legend(fontsize=8)
+
+    # add points for profile comparisons
+    for pl in profile_locs:
+        ax.plot(pl[0], pl[1], c='w', marker='s', mec='k', ms=5, linestyle='none', transform=ccrs.PlateCarree(),
+                label='Profile Comparison')
+
+    handles, labels = plt.gca().get_legend_handles_labels()  # only show one set of legend labels
+    by_label = dict(zip(labels, handles))
+    ax.legend(by_label.values(), by_label.keys(), fontsize=8)
+    # ax.legend(fontsize=8)
 
     # add RTOFS SST to map
     print('\nPlotting RTOFS SST')
@@ -120,7 +139,16 @@ def main(stime, etime, region, stm, sDir):
     # plot part of track for model comparison
     ax.plot(targetlon, targetlat, c='k', marker='o', ms=3, linestyle='none', transform=ccrs.PlateCarree(),
             label='Model Comparison')
-    ax.legend(fontsize=8)
+
+    # add points for profile comparisons
+    for pl in profile_locs:
+        ax.plot(pl[0], pl[1], c='w', marker='s', mec='k', ms=5, linestyle='none', transform=ccrs.PlateCarree(),
+                label='Profile Comparison')
+
+    handles, labels = plt.gca().get_legend_handles_labels()  # only show one set of legend labels
+    by_label = dict(zip(labels, handles))
+    ax.legend(by_label.values(), by_label.keys(), fontsize=8)
+    # ax.legend(fontsize=8)
 
     # add RTOFS-DA SST to map
     print('\nPlotting RTOFS-DA SST')
