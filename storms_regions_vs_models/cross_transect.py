@@ -2,18 +2,14 @@
 # -*- coding: utf-8 -*-
 """
 Author: aristizabal on 9/14/2020
-Last modified: Lori Garzio on 2/25/2021
+Last modified: Lori Garzio on 3/3/2021
 """
 
 import os
 import numpy as np
-import xarray as xr
 import datetime as dt
 from matplotlib import pyplot as plt
-import cartopy.crs as ccrs
-from mpl_toolkits.axes_grid1 import make_axes_locatable
 import cmocean as cmo
-import cftime
 import functions.cmems as cmems
 import functions.common as cf
 import functions.plotting as pf
@@ -22,54 +18,30 @@ import functions.rtofs as rtofs
 plt.rcParams.update({'font.size': 14})
 
 
-def add_sst_plot(figure, axis, longitude, latitude, data):
-    h = axis.pcolormesh(longitude, latitude, data, cmap=cmo.cm.thermal, transform=ccrs.PlateCarree())
+def plot_xsection(xdata, ydata, cdata, colormap, kwargs, ttl, ylab, xlab, clab, savefile, ylims=None):
+    fig, ax = plt.subplots(figsize=(12, 6))
 
-    # format the spacing of the colorbar
-    divider = make_axes_locatable(axis)
-    cax = divider.new_horizontal(size='5%', pad=0.1, axes_class=plt.Axes)
-    figure.add_axes(cax)
+    cs = plt.contourf(xdata, ydata, cdata, cmap=colormap, **kwargs)
+    plt.colorbar(cs, ax=ax, label=clab, pad=0.02)
+    plt.contour(xdata, ydata, cdata, [26], colors='k')
+    plt.title(ttl)
+    if ylims:
+        ax.set_ylim(ylims)
+    ax.invert_yaxis()
+    ax.set_ylabel(ylab)
+    ax.set_xlabel(xlab)
 
-    cb = plt.colorbar(h, cax=cax)
-    cb.set_label(label='SST ($^oC$)', fontsize=12)  # add the label on the colorbar
-    cb.ax.tick_params(labelsize=12)  # format the size of the tick labels
-
-
-def return_ibtracs_data(nc, variables):
-    # remove fill values and append data to dictionary
-    d = dict()
-    for v in variables:
-        vv = nc[v]
-        if v == 'time':
-            fv = cftime.DatetimeGregorian(-25518, 1, 28, 0, 0, 0, 0)
-        else:
-            fv = vv._FillValue
-        d[v] = vv.values[vv != fv]
-    return d
+    plt.savefig(savefile, dpi=300)
+    plt.close()
 
 
-def main(stime, etime, region, sDir):
-    lims = cf.define_region_limits(region)
-
-    # download CMEMS data
-    # cmems.download_ds(stime, etime, lims, '500')
-    cmems_file = '/Users/lgarzio/Documents/rucool/hurricane_glider_project/CMEMS/cmems20200823.nc'
-
-    CMEMSsst = cmems.return_sst(stime, etime, lims)
-
-    # IBTrACS dataset
+def main(stime, etime, stm, sDir):
+    # get the IBTrACS dataset
+    # define storm indices in IBTrACS file
+    stm_idx = {'Laura_2020': 276}
     ib = '/Users/lgarzio/Documents/rucool/hurricane_glider_project/IBTrACS/IBTrACS.last3years.v04r00.nc'
-    ibnc = xr.open_dataset(ib, mask_and_scale=False)
-    ncf = ibnc.sel(storm=276)  # Hurricane Laura
-
     ibvars = ['time', 'lat', 'lon']
-    ibdata = return_ibtracs_data(ncf, ibvars)
-
-    fig, ax = plt.subplots(subplot_kw=dict(projection=ccrs.PlateCarree()))
-
-    # plot entire track
-    ax.plot(ibdata['lon'], ibdata['lat'], c='dimgray', marker='None', linewidth=1, transform=ccrs.PlateCarree(),
-            label='Full Track')
+    ibdata = cf.return_ibtracs_storm(ib, stm_idx[stm], ibvars)
 
     # plot the portion of the track for which model comparisons will be made
     # find the lat/lon index where the storm is in the Gulf of Mexico
@@ -77,55 +49,7 @@ def main(stime, etime, region, sDir):
     tlon = ibdata['lon'][loc_idx]
     tlat = ibdata['lat'][loc_idx]
 
-    targetlon = np.array([])
-    targetlat = np.array([])
-    for ii, tl in enumerate(tlon):
-        if ii > 0:
-            x1 = tl
-            x2 = tlon[ii - 1]
-            y1 = tlat[ii]
-            y2 = tlat[ii - 1]
-            m = (y1-y2)/(x1-x2)
-            b = y1 - m * x1
-            X = np.arange(x1, x2, 0.1)
-            Y = b + m * X
-            if ii == 1:
-                targetlon = np.append(targetlon, x2)
-                targetlat = np.append(targetlat, y2)
-            targetlon = np.append(targetlon, X[::-1])
-            targetlat = np.append(targetlat, Y[::-1])
-
-    ax.plot(targetlon, targetlat, c='k', marker='o', ms=3, linestyle='none', transform=ccrs.PlateCarree(),
-            label='Model Comparison')
-
-    ax.legend(fontsize=8)
-
-    # add GOFS SST to map
-    print('\nPlotting GOFS SST')
-    GOFSsst = gofs.return_sst(stime, etime, lims)
-    savefile = os.path.join(sDir, '202102_Hurricane_Laura', 'Laura_GOFS_track_sst.png')
-    plt.title('GOFS SST: {}'.format(stime.strftime('%Y-%m-%d %H:%M')), fontsize=12)
-    GOFSsst_lonconvert = gofs.convert_gofs_target_lon(GOFSsst.lon.values)
-
-    add_sst_plot(fig, ax, GOFSsst_lonconvert, GOFSsst.lat.values, GOFSsst.values)
-
-    pf.add_map_features(ax, lims, landcolor='lightgray')
-
-    plt.savefig(savefile, dpi=300)
-    plt.close()
-
-    # # add RTOFS SST to map
-    # print('\nPlotting RTOFS SST')
-    # RTOFSsst = rtofs.return_sst(stime, etime, lims)
-    # savefile = os.path.join(sDir, '202102_Hurricane_Laura', 'Laura_RTOFS_track_sst.png')
-    # plt.title('RTOFS SST: {}'.format(stime.strftime('%Y-%m-%d %H:%M')), fontsize=12)
-    #
-    # add_sst_plot(fig, ax, RTOFSsst.Longitude.values, RTOFSsst.Latitude.values, RTOFSsst.values)
-    #
-    # pf.add_map_features(ax, lims, landcolor='lightgray')
-    #
-    # plt.savefig(savefile, dpi=300)
-    # plt.close()
+    targetlon, targetlat = cf.return_target_transect(tlon, tlat)
 
     # get data from each model closest to the hurricane track and plot the transect
     min_valt = 6
@@ -140,49 +64,67 @@ def main(stime, etime, region, sDir):
     target_lonGOFS = gofs.convert_target_gofs_lon(targetlon)
     GOFS_targettemp, GOFS_depth, GOFS_lon_subset, GOFS_lat_subset = gofs.return_transect('water_temp', stime, etime,
                                                                                          target_lonGOFS, targetlat)
-
-    fig, ax = plt.subplots(figsize=(12, 6))
+    color = cmo.cm.thermal
     kw = dict(levels=np.arange(min_valt, max_valt))
+    plt_ttl = 'GOFS Transect on ' + stime.strftime('%Y-%m-%d %H:%M')
+    ylabel = 'Depth (m)'
+    xlabel = 'Longitude'
+    clabel = 'Temperature ($^oC$)'
 
-    cs = plt.contourf(GOFS_lon_subset, GOFS_depth, GOFS_targettemp, cmap=cmo.cm.thermal, **kw)
-    plt.colorbar(cs, ax=ax, label='Temperature ($^oC$)', pad=0.02)
-    plt.contour(GOFS_lon_subset, GOFS_depth, GOFS_targettemp, [26], colors='k')
-    plt.title('GOFS Transect on ' + stime.strftime('%Y-%m-%d %H:%M'))
-    ax.set_ylim(0, 500)
-    ax.invert_yaxis()
-    ax.set_ylabel('Depth (m)')
-    ax.set_xlabel('Longitude')
+    # plot GOFS cross section 0-300m
+    ylimits = [0, 300]
+    savefile = os.path.join(sDir, '{}_GOFS_transect_temp_300.png'.format(stm))
+    plot_xsection(GOFS_lon_subset, GOFS_depth, GOFS_targettemp, color, kw, plt_ttl, ylabel, xlabel, clabel, savefile,
+                  ylimits)
 
-    savefile = os.path.join(sDir, '202102_Hurricane_Laura', 'Laura_GOFS_transect_temp.png')
-    plt.savefig(savefile, dpi=300)
-    plt.close()
+    # plot GOFS cross section 0-500m
+    ylimits = [0, 500]
+    savefile = os.path.join(sDir, '{}_GOFS_transect_temp_500.png'.format(stm))
+    plot_xsection(GOFS_lon_subset, GOFS_depth, GOFS_targettemp, color, kw, plt_ttl, ylabel, xlabel, clabel, savefile,
+                  ylimits)
 
-    # # plot RTOFS transect closest to the hurricane track
-    # print('\nRetrieving RTOFS water temp transect')
-    # RTOFS_targettemp, RTOFS_depth, RTOFS_lon_subset, RTOFS_lat_subset = rtofs.return_transect('temperature', stime,
-    #                                                                                           etime, targetlon,
-    #                                                                                           targetlat)
-    #
-    # fig, ax = plt.subplots(figsize=(12, 6))
-    # kw = dict(levels=np.arange(min_valt, max_valt))
-    #
-    # cs = plt.contourf(RTOFS_lon_subset, RTOFS_depth, RTOFS_targettemp, cmap=cmo.cm.thermal, **kw)
-    # plt.colorbar(cs, ax=ax, label='Temperature ($^oC$)', pad=0.02)
-    # plt.contour(RTOFS_lon_subset, RTOFS_depth, RTOFS_targettemp, [26], colors='k')
-    # plt.title('RTOFS Transect on ' + stime.strftime('%Y-%m-%d %H:%M'))
-    # ax.set_ylim(0, 500)
-    # ax.invert_yaxis()
-    # ax.set_ylabel('Depth (m)')
-    # ax.set_xlabel('Longitude')
-    #
-    # savefile = os.path.join(sDir, '202102_Hurricane_Laura', 'Laura_RTOFS_transect_temp.png')
-    # plt.savefig(savefile, dpi=300)
-    # plt.close()
+    # plot RTOFS transect closest to the hurricane track
+    print('\nRetrieving RTOFS water temp transect')
+    RTOFS_targettemp, RTOFS_depth, RTOFS_lon_subset, RTOFS_lat_subset = rtofs.return_transect('temperature', stime,
+                                                                                              etime, targetlon,
+                                                                                              targetlat, 'RTOFS')
+    # plot RTOFS cross section 0-300m
+    plt_ttl = 'RTOFS Transect on ' + stime.strftime('%Y-%m-%d %H:%M')
+    ylimits = [0, 300]
+    savefile = os.path.join(sDir, '{}_RTOFS_transect_temp_300.png'.format(stm))
+    plot_xsection(RTOFS_lon_subset, RTOFS_depth, RTOFS_targettemp, color, kw, plt_ttl, ylabel, xlabel, clabel, savefile,
+                  ylimits)
+
+    # plot RTOFS cross section 0-500m
+    ylimits = [0, 500]
+    savefile = os.path.join(sDir, '{}_RTOFS_transect_temp_500.png'.format(stm))
+    plot_xsection(RTOFS_lon_subset, RTOFS_depth, RTOFS_targettemp, color, kw, plt_ttl, ylabel, xlabel, clabel, savefile,
+                  ylimits)
+
+    ## plot RTOFS-DA transect closest to the hurricane track
+    print('\nRetrieving RTOFS-DA water temp transect')
+    RTOFSDA_targettemp, RTOFSDA_depth, RTOFSDA_lon_subset, RTOFSDA_lat_subset = rtofs.return_transect('temperature',
+                                                                                                      stime, etime,
+                                                                                                      targetlon,
+                                                                                                      targetlat,
+                                                                                                      'RTOFS-DA')
+    # plot RTOFS-DA cross section 0-300m
+    plt_ttl = 'RTOFS-DA Transect on ' + stime.strftime('%Y-%m-%d %H:%M')
+    ylimits = [0, 300]
+    savefile = os.path.join(sDir, '{}_RTOFSDA_transect_temp_300.png'.format(stm))
+    plot_xsection(RTOFSDA_lon_subset, RTOFSDA_depth, RTOFSDA_targettemp, color, kw, plt_ttl, ylabel, xlabel, clabel,
+                  savefile, ylimits)
+
+    # plot RTOFS-DA cross section 0-500m
+    ylimits = [0, 500]
+    savefile = os.path.join(sDir, '{}_RTOFSDA_transect_temp_500.png'.format(stm))
+    plot_xsection(RTOFSDA_lon_subset, RTOFSDA_depth, RTOFSDA_targettemp, color, kw, plt_ttl, ylabel, xlabel, clabel,
+                  savefile, ylimits)
 
 
 if __name__ == '__main__':
     start_time = dt.datetime(2020, 8, 23, 12)
     end_time = dt.datetime(2020, 8, 23, 12)
-    region = 'GoMex'
-    save_dir = '/Users/lgarzio/Documents/rucool/hurricane_glider_project'
-    main(start_time, end_time, region, save_dir)
+    storm_name = 'Laura_2020'
+    save_dir = os.path.join('/Users/lgarzio/Documents/rucool/hurricane_glider_project', storm_name)
+    main(start_time, end_time, storm_name, save_dir)
