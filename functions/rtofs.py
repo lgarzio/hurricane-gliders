@@ -13,9 +13,18 @@ import datetime as dt
 # folder_RTOFS = '/home/coolgroup/RTOFS/forecasts/domains/hurricanes/RTOFS_6hourly_North_Atlantic'  # on server
 # folder_RTOFS = '/Users/lgarzio/Documents/rucool/hurricane_glider_project/RTOFS/RTOFS_6hourly_North_Atlantic'  # on local machine
 
+# RTOFS-DA folder
+# folder_RTOFS_DA = '/home/lgarzio/hurricane_gliders/RTOFS_DA/data'  # on server
+# folder_RTOFS_DA = '/Users/lgarzio/Documents/rucool/hurricane_glider_project/RTOFS-DA'  # on local machine
 
-def get_files(start_time, end_time):
-    rtofs_dir = '/Users/lgarzio/Documents/rucool/hurricane_glider_project/RTOFS/RTOFS_6hourly_North_Atlantic'
+
+def get_files(start_time, end_time, model):
+    if model == 'RTOFS':
+        rtofs_dir = '/Users/lgarzio/Documents/rucool/hurricane_glider_project/RTOFS/RTOFS_6hourly_North_Atlantic'
+    elif model == 'RTOFS-DA':
+        rtofs_dir = '/Users/lgarzio/Documents/rucool/hurricane_glider_project/RTOFS-DA'
+    else:
+        print('No valid model provided')
     file_hours = [6, 12, 18, 24]
     file_list = []
     if end_time - start_time == dt.timedelta(0):
@@ -31,14 +40,14 @@ def get_files(start_time, end_time):
     return file_list
 
 
-def return_sst(start_time, end_time, coordlims):
+def return_sst(start_time, end_time, coordlims, model):
     """
     :param start_time: start time (datetime)
     :param end_time: end time (datetime)
     :param coordlims: [lon min, lon max, lat min, lat max]
     :return: GOFS SST object
     """
-    filenames = get_files(start_time, end_time)
+    filenames = get_files(start_time, end_time, model)
 
     ds = xr.open_dataset(filenames[0])
     ds = ds.drop('Date')  # drop unnecessary coordinates
@@ -59,8 +68,8 @@ def return_sst(start_time, end_time, coordlims):
     return sst
 
 
-def return_transect(varname, start_time, end_time, target_lons, target_lats):
-    filenames = get_files(start_time, end_time)
+def return_transect(varname, start_time, end_time, target_lons, target_lats, model):
+    filenames = get_files(start_time, end_time, model)
 
     ds = xr.open_dataset(filenames[0])
     ds = ds.drop('Date')  # drop unnecessary coordinates
