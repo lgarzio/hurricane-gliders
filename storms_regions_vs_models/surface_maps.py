@@ -8,7 +8,9 @@ Last modified 3/5/2021
 import os
 import numpy as np
 import datetime as dt
+import matplotlib as mpl
 from matplotlib import pyplot as plt
+from matplotlib.lines import Line2D
 import cartopy.crs as ccrs
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import cmocean as cmo
@@ -18,6 +20,32 @@ import functions.plotting as pf
 import functions.gofs as gofs
 import functions.rtofs as rtofs
 plt.rcParams.update({'font.size': 14})
+
+
+def hurricane_intensity_cmap(categories):
+    intensity_colors = [
+        "#efefef",  # TS
+        "#ffffb2",  # cat 1
+        "#fed976",  # cat 2 "#feb24c"
+        "#e69138",  # cat 3 "#fd8d3c"
+        "#cc0000",  # cat 4 "#f03b20"
+        "#990000",  # cat 5 "#bd0026"
+    ]
+    mincat = np.nanmin(categories)
+    maxcat = np.nanmax(categories)
+    custom_colors = intensity_colors[mincat: maxcat + 1]  # make the colors span the range of data
+    hurricane_colormap = mpl.colors.ListedColormap(custom_colors)
+
+    # make custom legend
+    le = [Line2D([0], [0], marker='o', markerfacecolor='#efefef', mec='k', linestyle='none', label='TS'),
+          Line2D([0], [0], marker='o', markerfacecolor='#ffffb2', mec='k', linestyle='none', label='Cat 1'),
+          Line2D([0], [0], marker='o', markerfacecolor='#fed976', mec='k', linestyle='none', label='Cat 2'),
+          Line2D([0], [0], marker='o', markerfacecolor='#e69138', mec='k', linestyle='none', label='Cat 3'),
+          Line2D([0], [0], marker='o', markerfacecolor='#cc0000', mec='k', linestyle='none', label='Cat 4'),
+          Line2D([0], [0], marker='o', markerfacecolor='#990000', mec='k', linestyle='none', label='Cat 5')]
+    le_custom = le[mincat: maxcat + 1]  # make the legend handles span the range of data
+
+    return hurricane_colormap, le_custom
 
 
 def surfacevar_plot(figure, axis, longitude, latitude, data, colormap, colorlabel, color_lims=None, color_ticks=None):
@@ -41,8 +69,8 @@ def surfacevar_plot(figure, axis, longitude, latitude, data, colormap, colorlabe
 
 def main(stime, etime, region, stm, sDir):
     lims, xticks = cf.define_region_limits(region)
-    #pltvars = ['temp', 'salt']
-    pltvars = ['salt']
+    pltvars = ['temp', 'salt']
+    #pltvars = ['salt']
     minfo = {'GOFS': {'temp': 'water_temp', 'salt': 'salinity'},
              'RTOFS': {'temp': 'temperature', 'salt': 'salinity'},
              'RTOFSDA': {'temp': 'temperature', 'salt': 'salinity'}
@@ -62,7 +90,7 @@ def main(stime, etime, region, stm, sDir):
     # define storm indices in IBTrACS file
     stm_idx = {'Laura_2020': 276}
     ib = '/Users/lgarzio/Documents/rucool/hurricane_glider_project/IBTrACS/IBTrACS.last3years.v04r00.nc'
-    ibvars = ['time', 'lat', 'lon']
+    ibvars = ['time', 'lat', 'lon', 'usa_sshs']
     ibdata = cf.return_ibtracs_storm(ib, stm_idx[stm], ibvars)
 
     # find the portion of the track for which model comparisons will be made
@@ -70,6 +98,7 @@ def main(stime, etime, region, stm, sDir):
     loc_idx = np.logical_and(ibdata['lon'] < -84, ibdata['lat'] < 30)
     tlon = ibdata['lon'][loc_idx]
     tlat = ibdata['lat'][loc_idx]
+    cat = ibdata['usa_sshs'][loc_idx]
 
     targetlon, targetlat = cf.return_target_transect(tlon, tlat)
 
@@ -84,13 +113,21 @@ def main(stime, etime, region, stm, sDir):
             ax.plot(targetlon, targetlat, c='k', marker='None', linewidth=2, transform=ccrs.PlateCarree(),
                     label='Model Transect')
 
+            # plot IBTrACS data points for storm intensity
+            cmap, hurr_legend = hurricane_intensity_cmap(cat)
+            ax.scatter(tlon, tlat, c=cat, cmap=cmap, marker='o', edgecolor='k', s=40, transform=ccrs.PlateCarree(), zorder=10)
+
             for pl in profile_locs:
-                ax.plot(pl[0], pl[1], c='w', marker='s', mec='k', ms=6, linestyle='none', transform=ccrs.PlateCarree(),
+                ax.plot(pl[0], pl[1], c='w', marker='s', mec='k', ms=8, linestyle='none', transform=ccrs.PlateCarree(),
                         label='Profile Comparison')
 
             handles, labels = plt.gca().get_legend_handles_labels()  # only show one set of legend labels
             by_label = dict(zip(labels, handles))
-            ax.legend(by_label.values(), by_label.keys(), fontsize=8)
+
+            # add 2 legends
+            first_legend = plt.legend(by_label.values(), by_label.keys(), fontsize=8)
+            plt.legend(handles=hurr_legend, loc='upper left', fontsize=8)
+            plt.gca().add_artist(first_legend)
 
             # add model data to map
             print('\nPlotting {} {}'.format(model, pv))
