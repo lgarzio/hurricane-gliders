@@ -6,17 +6,19 @@ Last modified: 2/19/2021
 """
 import xarray as xr
 import numpy as np
+import matplotlib.ticker as mticker
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 import cmocean
 
 
-def add_map_features(axis, axes_limits=None, landcolor=None, ecolor=None, bath_file=None):
+def add_map_features(axis, axes_limits=None, xlocs=None, landcolor=None, ecolor=None, bath_file=None):
     """
     Adds latitude and longitude gridlines and labels, coastlines, and optional bathymetry to a cartopy map
     object
     :param axis: plotting axis object
     :param axes_limits: optional list of axis limits [min lon, max lon, min lat, max lat]
+    :param axes_limits: optional list of x axis locations
     :param landcolor: optional land color, default is none
     :param ecolor: optional edge color, default is black
     :param bath_file: optional bathymetry file
@@ -26,6 +28,8 @@ def add_map_features(axis, axes_limits=None, landcolor=None, ecolor=None, bath_f
     gl.right_labels = False
     gl.xlabel_style = {'size': 12}
     gl.ylabel_style = {'size': 12}
+    if xlocs:
+        gl.xlocator = mticker.FixedLocator(xlocs)
 
     # add some space between the grid labels and bottom of plot
     gl.xpadding = 12

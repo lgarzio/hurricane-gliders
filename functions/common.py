@@ -17,7 +17,10 @@ def define_region_limits(region):
 
     if region == 'GoMex':
         limits = [-100, -80, 18, 32]
-    return limits
+        xticks = [-96, -92, -88, -84]
+    return limits, xticks
+
+
 
 
 def return_ibtracs_storm(fname, storm_idx, variables):
