@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 Written by Lori Garzio on 3/5/2021
-Last modified 3/5/2021
+Last modified 3/16/2021
 """
 
 import os
@@ -14,7 +14,7 @@ from matplotlib.lines import Line2D
 import cartopy.crs as ccrs
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import cmocean as cmo
-import functions.cmems as cmems
+import functions.gliders as gliders
 import functions.common as cf
 import functions.plotting as pf
 import functions.gofs as gofs
@@ -99,8 +99,24 @@ def main(stime, etime, region, stm, sDir):
     tlon = ibdata['lon'][loc_idx]
     tlat = ibdata['lat'][loc_idx]
     cat = ibdata['usa_sshs'][loc_idx]
+    ibtime_gom = ibdata['time'][loc_idx]  # time in the Gulf of Mexico
+    t0_str = ibtime_gom[0].strftime('%Y-%m-%dT%H:%M')
+    tf_str = (ibtime_gom[-1] + dt.timedelta(days=1)).strftime('%Y-%m-%dT%H:%M')
 
     targetlon, targetlat = cf.return_target_transect(tlon, tlat)
+
+    # find glider datasets
+    ioos_server = 'https://data.ioos.us/gliders/erddap'
+
+    kw = {'min_lon': lims[0], 'max_lon': lims[1] - 2, 'min_lat': lims[2], 'max_lat': lims[3],
+          'min_time': t0_str, 'max_time': tf_str}
+
+    gliderids = gliders.return_glider_ids(ioos_server, kw)
+
+    glconstraints = {'time>=': t0_str, 'time<=': tf_str, 'latitude>=': lims[2], 'latitude<=': lims[3],
+                     'longitude>=': lims[0], 'longitude<=': lims[1] - 2}
+
+    glvars = ['time', 'latitude', 'longitude']
 
     for pv in pltvars:
         for model in minfo.keys():
@@ -125,9 +141,18 @@ def main(stime, etime, region, stm, sDir):
             by_label = dict(zip(labels, handles))
 
             # add 2 legends
-            first_legend = plt.legend(by_label.values(), by_label.keys(), fontsize=8)
-            plt.legend(handles=hurr_legend, loc='upper left', fontsize=8)
+            first_legend = plt.legend(by_label.values(), by_label.keys(), loc='upper right', fontsize=7)
+            plt.legend(handles=hurr_legend, loc='upper left', fontsize=7)
             plt.gca().add_artist(first_legend)
+
+            # add glider tracks
+            for glid in gliderids:
+                glds = gliders.get_erddap_nc(ioos_server, glid, var_list=glvars, constraints=glconstraints)
+                if glds:
+                    gllon = glds.longitude.values
+                    gllat = glds.latitude.values
+                    ax.plot(gllon, gllat, c='w', marker='None', linewidth=3, transform=ccrs.PlateCarree(), zorder=10)
+                    ax.text(np.nanmax(gllon), np.nanmax(gllat), glid.split('-')[0], fontsize=5)
 
             # add model data to map
             print('\nPlotting {} {}'.format(model, pv))
@@ -140,7 +165,9 @@ def main(stime, etime, region, stm, sDir):
                 lonvalues = mvar.Longitude.values
                 latvalues = mvar.Latitude.values
             savefile = os.path.join(sDir, '{}_{}_track_{}.png'.format(stm, model, vinfo[pv]['savename']))
-            plt.title('{} {}: {}'.format(model, vinfo[pv]['name'], stime.strftime('%Y-%m-%d %H:%M')), fontsize=12)
+            ttl = '{} {}: {}\nGlider lims: {} to {}'.format(model, vinfo[pv]['name'], stime.strftime('%Y-%m-%d %H:%M'),
+                                                            t0_str, tf_str)
+            plt.title(ttl, fontsize=12)
             surfacevar_plot(fig, ax, lonvalues, latvalues, mvar.values, vinfo[pv]['cmap'], vinfo[pv]['label'],
                             vinfo[pv]['lims'], vinfo[pv]['colorticks'])
 
