@@ -21,7 +21,7 @@ import datetime as dt
 def get_files(start_time, end_time, model):
     if model == 'RTOFS':
         rtofs_dir = '/Users/lgarzio/Documents/rucool/hurricane_glider_project/RTOFS/RTOFS_6hourly_North_Atlantic'
-    elif model == 'RTOFS-DA':
+    elif model == 'RTOFSDA':
         rtofs_dir = '/Users/lgarzio/Documents/rucool/hurricane_glider_project/RTOFS-DA'
     else:
         print('No valid model provided')
@@ -60,12 +60,13 @@ def return_point(varname, start_time, end_time, target_lon, target_lat, model):
     return target_ds
 
 
-def return_sst(start_time, end_time, coordlims, model):
+def return_surface_variable(varname, start_time, end_time, coordlims, model):
     """
+    :param varname: variable name
     :param start_time: start time (datetime)
     :param end_time: end time (datetime)
     :param coordlims: [lon min, lon max, lat min, lat max]
-    :return: GOFS SST object
+    :return: RTOFS surface data object
     """
     filenames = get_files(start_time, end_time, model)
 
@@ -74,7 +75,7 @@ def return_sst(start_time, end_time, coordlims, model):
     lat = ds.Latitude.values
     lon = ds.Longitude.values
 
-    sst = np.squeeze(ds.temperature.sel(Depth=0.0))
+    ds_surface = np.squeeze(ds[varname].sel(Depth=0.0))
     lon_ind = np.logical_and(lon > coordlims[0], lon < coordlims[1])
     lat_ind = np.logical_and(lat > coordlims[2], lat < coordlims[3])
 
@@ -82,10 +83,10 @@ def return_sst(start_time, end_time, coordlims, model):
     ind = np.where(np.logical_and(lon_ind, lat_ind))
 
     # subset data from min i,j lat/lon corner to max i,j lat/lon corner
-    sst = np.squeeze(sst)[range(np.min(ind[0]), np.max(ind[0]) + 1),
-                          range(np.min(ind[1]), np.max(ind[1]) + 1)]
+    ds_surface = np.squeeze(ds_surface)[range(np.min(ind[0]), np.max(ind[0]) + 1),
+                                        range(np.min(ind[1]), np.max(ind[1]) + 1)]
 
-    return sst
+    return ds_surface
 
 
 def return_transect(varname, start_time, end_time, target_lons, target_lats, model):
@@ -101,7 +102,7 @@ def return_transect(varname, start_time, end_time, target_lons, target_lats, mod
     lat_idx = np.round(np.interp(target_lats, lat[:, 0], np.arange(0, len(lat[:, 0])))).astype(int)
 
     lon_subset = lon[0, lon_idx]
-    lat_subset = lat[0, lat_idx]
+    lat_subset = lat[lat_idx, 0]
 
     depth = ds.Depth.values
     # target_var = ds.variables[varname][:, lat_idx, lon_idx]
