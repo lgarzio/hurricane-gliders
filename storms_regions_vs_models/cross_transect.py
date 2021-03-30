@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 Author: Lori Garzio on 3/3/2021
-Last modified: Lori Garzio on 3/23/2021
+Last modified: Lori Garzio on 3/29/2021
 """
 
 import os
@@ -33,12 +33,16 @@ def plot_xsection(axis, xdata, ydata, cdata, colormap, ttl, ylab, xlab, clab, kw
 
 
 def main(stime, etime, stm, sDir):
-    pltvars = ['temp', 'salt']
-    ylimits = [[0, 300], [0, 500]]
-    minfo = {'GOFS': {'temp': 'water_temp', 'salt': 'salinity'},
-             'RTOFS': {'temp': 'temperature', 'salt': 'salinity'},
-             'RTOFSDA': {'temp': 'temperature', 'salt': 'salinity'}
+    #pltvars = ['temp', 'salt']
+    pltvars = ['temp']
+    #ylimits = [[0, 300], [0, 500]]
+    ylimits = [[0, 300]]
+    minfo = {'RTOFS': {'temp': 'temperature', 'salt': 'salinity'},
+             'RTOFSDA': {'temp': 'temperature', 'salt': 'salinity'},
+             'GOFS': {'temp': 'water_temp', 'salt': 'salinity'}
              }
+    # minfo = {'GOFS': {'temp': 'water_temp', 'salt': 'salinity'}
+    #          }
     vinfo = {'temp': {'label': 'SST ($^oC$)', 'name': 'SST', 'cmap': cmo.cm.thermal, 'lims': [6, 32],
                       'colorticks': np.arange(6, 32), 'savename': 'sst'},
              'salt': {'label': 'Salinity', 'name': 'SSS', 'cmap': cmo.cm.haline, 'lims': [31.2, 37.2],
@@ -48,7 +52,7 @@ def main(stime, etime, stm, sDir):
     # get the IBTrACS dataset
     # define storm indices in IBTrACS file
     stm_idx = {'Laura_2020': 276}
-    ib = '/Users/lgarzio/Documents/rucool/hurricane_glider_project/IBTrACS/IBTrACS.last3years.v04r00.nc'
+    ib = '/Users/garzio/Documents/rucool/hurricane_glider_project/IBTrACS/IBTrACS.last3years.v04r00.nc'
     ibvars = ['time', 'lat', 'lon']
     ibdata = cf.return_ibtracs_storm(ib, stm_idx[stm], ibvars)
 
@@ -71,6 +75,7 @@ def main(stime, etime, stm, sDir):
                     m_targetvar, m_depth, m_lon_subset, m_lat_subset = rtofs.return_transect(minfo[model][pv], stime,
                                                                                              etime, targetlon,
                                                                                              targetlat, 'RTOFS')
+                    #depth_matrix = np.tile(m_depth, (np.shape(m_targetvar)[1], 1)).T
 
                 elif model == 'RTOFSDA':
                     m_targetvar, m_depth, m_lon_subset, m_lat_subset = rtofs.return_transect(minfo[model][pv], stime,
@@ -89,14 +94,32 @@ def main(stime, etime, stm, sDir):
                 savefile = os.path.join(sDir, '{}_{}_transect_{}_{}m_{}.png'.format(stm, model, pv, yl[1],
                                                                                     stime.strftime('%Y%m%dT%H')))
 
-                plt.savefig(savefile, dpi=300)
-                plt.close()
+                #plt.savefig(savefile, dpi=300)
+                #plt.close()
+
+                if pv == 'temp':
+                    # plot OHC
+                    ohc = cf.ohc_surface_2d(m_targetvar.T, m_depth)
+                    fig, ax = plt.subplots(figsize=(12, 6))
+                    ax.plot(m_lon_subset, ohc)
+                    ax.set_ylim(10, 150)
+                    plt_ttl = '{} OHC (integrated to 26C) on {}'.format(model, stime.strftime('%Y-%m-%d %H:%M'))
+                    plt.title(plt_ttl)
+                    ax.set_ylabel(r'($\rmKJ / cm^2$)')
+                    ax.set_xlabel(xlabel)
+
+                    savefile = os.path.join(sDir, '{}_{}_transect_ohc_{}.png'.format(stm, model,
+                                                                                     stime.strftime('%Y%m%dT%H')))
+                    plt.savefig(savefile, dpi=300)
+                    plt.close()
 
 
 if __name__ == '__main__':
     start_time = dt.datetime(2020, 8, 23, 12)
     end_time = dt.datetime(2020, 8, 23, 12)
+    #start_time = dt.datetime(2020, 8, 28, 12)
+    #end_time = dt.datetime(2020, 8, 28, 12)
     storm_name = 'Laura_2020'
-    save_dir = os.path.join('/Users/lgarzio/Documents/rucool/hurricane_glider_project', storm_name)
+    save_dir = os.path.join('/Users/garzio/Documents/rucool/hurricane_glider_project', storm_name)
     main(start_time, end_time, storm_name, save_dir)
 

@@ -7,6 +7,7 @@ Last modified: 3/3/2021
 import numpy as np
 import xarray as xr
 import cftime
+import seawater as sw
 
 
 def define_region_limits(region):
@@ -58,3 +59,9 @@ def return_target_transect(target_lons, target_lats):
             targetlon = np.append(targetlon, X[::-1])
             targetlat = np.append(targetlat, Y[::-1])
     return targetlon, targetlat
+
+
+def calculate_density_3d(salinity, temperature, depth):
+    depth_broadcast = np.tile(depth, (temperature.shape[2], temperature.shape[1], 1)).T
+    density = sw.dens(salinity, temperature, depth_broadcast)
+    return density

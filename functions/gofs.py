@@ -2,7 +2,7 @@
 
 """
 Author: Lori Garzio on 2/24/2021
-Last modified: 2/24/2021
+Last modified: 3/29/2021
 """
 import numpy as np
 import xarray as xr
@@ -46,11 +46,27 @@ def get_ds(varname, st, et):
 
     ds = xr.open_dataset(url, decode_times=False)
     if et - st == dt.timedelta(0):
-        ds = ds.sel(time=netCDF4.date2num(st, ds.time.units))
+        ds = ds.sel(time=netCDF4.date2num(st, ds.time.units), method='nearest')
     else:
         print('figure out time slicing')
 
     return ds
+
+
+def return_gridded_ds(varname, start_time, end_time, coordlims, depth_slice=None):
+    ds = get_ds(varname, start_time, end_time)
+    if depth_slice:
+        ds = ds.sel(depth=slice(depth_slice[0], depth_slice[1]))
+
+    lon = ds.lon.values
+    lat = ds.lat.values
+
+    lon_convert = convert_gofs_target_lon(lon)
+    lon_ind = np.logical_and(lon_convert > coordlims[0], lon_convert < coordlims[1])
+    lat_ind = np.logical_and(lat > coordlims[2], lat < coordlims[3])
+    vardata = np.squeeze(ds[varname])[:, lat_ind, lon_ind]
+
+    return vardata
 
 
 def return_point(varname, start_time, end_time, target_lon, target_lat):
@@ -69,24 +85,25 @@ def return_point(varname, start_time, end_time, target_lon, target_lat):
     return target_ds
 
 
-def return_sst(start_time, end_time, coordlims):
+def return_surface_variable(varname, start_time, end_time, coordlims):
     """
+    :param varname: variable name
     :param start_time: start time (datetime)
     :param end_time: end time (datetime)
     :param coordlims: [lon min, lon max, lat min, lat max]
-    :return: GOFS SST object
+    :return: GOFS surface data object
     """
-    ds = get_ds('water_temp', start_time, end_time)
+    ds = get_ds(varname, start_time, end_time)
     lat = ds.lat.values
     lon = ds.lon.values
 
-    sst = ds.water_temp.sel(depth=0.0)
+    ds_surface = ds[varname].sel(depth=0.0)
     lon_convert = convert_gofs_target_lon(lon)
     lon_ind = np.logical_and(lon_convert > coordlims[0], lon_convert < coordlims[1])
     lat_ind = np.logical_and(lat > coordlims[2], lat < coordlims[3])
-    sst = np.squeeze(sst)[lat_ind, lon_ind]
+    ds_surface = np.squeeze(ds_surface)[lat_ind, lon_ind]
 
-    return sst
+    return ds_surface
 
 
 def return_transect(varname, start_time, end_time, target_lons, target_lats):

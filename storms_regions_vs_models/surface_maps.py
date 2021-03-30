@@ -2,12 +2,13 @@
 # -*- coding: utf-8 -*-
 """
 Written by Lori Garzio on 3/5/2021
-Last modified 3/16/2021
+Last modified 3/30/2021
 """
 
 import os
 import numpy as np
 import datetime as dt
+import xarray as xr
 import matplotlib as mpl
 from matplotlib import pyplot as plt
 from matplotlib.lines import Line2D
@@ -66,31 +67,46 @@ def surfacevar_plot(figure, axis, longitude, latitude, data, colormap, colorlabe
     if color_ticks is not None:
         cb.set_ticks(color_ticks)
 
+    plt.subplots_adjust(right=0.88)
+
 
 def main(stime, etime, region, stm, sDir):
     lims, xticks = cf.define_region_limits(region)
-    pltvars = ['temp', 'salt']
-    #pltvars = ['salt']
-    minfo = {'GOFS': {'temp': 'water_temp', 'salt': 'salinity'},
-             'RTOFS': {'temp': 'temperature', 'salt': 'salinity'},
-             'RTOFSDA': {'temp': 'temperature', 'salt': 'salinity'}
+    #pltvars = ['ohc', 'temp', 'salt']
+    pltvars = ['ohc']
+    # minfo = {'GOFS': {'temp': 'water_temp', 'salt': 'salinity', 'coords': {'depth': 'depth',
+    #                                                                        'lat': 'lat',
+    #                                                                        'lon': 'lon'}},
+    #          'RTOFS': {'temp': 'temperature', 'salt': 'salinity', 'coords': {'depth': 'Depth',
+    #                                                                          'lat': 'Latitude',
+    #                                                                          'lon': 'Longitude'}},
+    #          'RTOFSDA': {'temp': 'temperature', 'salt': 'salinity', 'coords': {'depth': 'Depth',
+    #                                                                            'lat': 'Latitude',
+    #                                                                            'lon': 'Longitude'}},
+    #
+    #          }
+    minfo = {'GOFS': {'temp': 'water_temp', 'salt': 'salinity', 'coords': {'depth': 'depth',
+                                                                           'lat': 'lat',
+                                                                           'lon': 'lon'}}
              }
 
     # add points for profile comparisons
-    profile_locs = [[-91.5, 26.5], [-85, 22.7]]
-    #profile_locs = [[-92.97, 27.48]]
+    #profile_locs = [[-91.5, 26.5], [-85, 22.7]]
+    profile_locs = [[-92.97, 27.48]]  # glider location
 
     vinfo = {'temp': {'label': 'SST ($^oC$)', 'name': 'SST', 'cmap': cmo.cm.thermal, 'lims': [28, 32],
                       'colorticks': np.arange(28, 33, 1), 'savename': 'sst'},
              'salt': {'label': 'Salinity', 'name': 'SSS', 'cmap': cmo.cm.haline, 'lims': [33, 37],
-                      'colorticks': np.arange(33, 38, 1), 'savename': 'sss'}
+                      'colorticks': np.arange(33, 38, 1), 'savename': 'sss'},
+             'ohc': {'label': r'OHC ($\rmKJ / cm^2$)', 'name': 'OHC (integrated 26C)', 'cmap': cmo.cm.thermal,
+                     'lims': [20, 160], 'savename': 'ohc'}
              }
 
     # get the IBTrACS dataset
     # define storm indices in IBTrACS file
     stm_idx = {'Laura_2020': 276}
-    ib = '/Users/lgarzio/Documents/rucool/hurricane_glider_project/IBTrACS/IBTrACS.last3years.v04r00.nc'
-    ibvars = ['time', 'lat', 'lon', 'usa_sshs']
+    ib = '/Users/garzio/Documents/rucool/hurricane_glider_project/IBTrACS/IBTrACS.last3years.v04r00.nc'
+    ibvars = ['time', 'lat', 'lon', 'usa_sshs', 'landfall']
     ibdata = cf.return_ibtracs_storm(ib, stm_idx[stm], ibvars)
 
     # find the portion of the track for which model comparisons will be made
@@ -104,6 +120,24 @@ def main(stime, etime, region, stm, sDir):
     tf_str = (ibtime_gom[-1] + dt.timedelta(days=1)).strftime('%Y-%m-%dT%H:%M')
 
     targetlon, targetlat = cf.return_target_transect(tlon, tlat)
+
+    # plot storm intensity
+    fig, ax = plt.subplots()
+    ax.scatter(tlat, cat)
+
+    ax.xaxis.set_major_locator(plt.MaxNLocator(9))
+    ax.yaxis.set_major_locator(plt.MaxNLocator(5))
+
+    ax.set_xlabel('Latitude')
+    ax.set_ylabel('Storm Intensity')
+
+    ttl = '{}'.format(stm)
+    plt.title(ttl, fontsize=12)
+
+    savefile = os.path.join(sDir, '{}_intensity.png'.format(stm))
+
+    plt.savefig(savefile, dpi=300)
+    plt.close()
 
     # find glider datasets
     ioos_server = 'https://data.ioos.us/gliders/erddap'
@@ -133,6 +167,13 @@ def main(stime, etime, region, stm, sDir):
             cmap, hurr_legend = hurricane_intensity_cmap(cat)
             ax.scatter(tlon, tlat, c=cat, cmap=cmap, marker='o', edgecolor='k', s=40, transform=ccrs.PlateCarree(), zorder=10)
 
+            # plot timestamps
+            for tidx in [0, 7, 15]:
+                ax.plot(tlon[tidx], tlat[tidx], c='k', marker='x', ms=8, linestyle='none', transform=ccrs.PlateCarree(),
+                        zorder=11)
+                ax.text(tlon[tidx] + .5, tlat[tidx], ibtime_gom[tidx].strftime('%m%dT%H'),
+                        bbox=dict(facecolor='lightgray', alpha=0.6), fontsize=6)
+
             for pl in profile_locs:
                 ax.plot(pl[0], pl[1], c='w', marker='s', mec='k', ms=8, linestyle='none', transform=ccrs.PlateCarree(),
                         label='Profile Comparison')
@@ -157,19 +198,39 @@ def main(stime, etime, region, stm, sDir):
             # add model data to map
             print('\nPlotting {} {}'.format(model, pv))
             if model == 'GOFS':
-                mvar = gofs.return_surface_variable(minfo[model][pv], stime, etime, lims)
-                lonvalues = gofs.convert_gofs_target_lon(mvar.lon.values)
-                latvalues = mvar.lat.values
+                if pv == 'ohc':
+                    #mvar = gofs.return_gridded_ds(minfo[model]['temp'], stime, etime, lims)
+                    #mvar = xr.open_dataarray('/Users/garzio/Documents/rucool/hurricane_glider_project/Laura_2020/GOFS_data/GOFS_mvar_20200823T12.nc')
+                    mvar = xr.open_dataarray('/Users/garzio/Documents/rucool/hurricane_glider_project/Laura_2020/GOFS_data/GOFS_mvar_20200828T12.nc')
+                    ohc = cf.ohc_surface_3d(mvar, minfo[model]['coords'], model)
+                    lonvalues = gofs.convert_gofs_target_lon(ohc.lon.values)
+                    latvalues = ohc.lat.values
+                else:
+                    mvar = gofs.return_surface_variable(minfo[model][pv], stime, etime, lims)
+                    lonvalues = gofs.convert_gofs_target_lon(mvar.lon.values)
+                    latvalues = mvar.lat.values
             elif model in ['RTOFS', 'RTOFSDA']:
-                mvar = rtofs.return_surface_variable(minfo[model][pv], stime, etime, lims, model)
-                lonvalues = mvar.Longitude.values
-                latvalues = mvar.Latitude.values
-            savefile = os.path.join(sDir, '{}_{}_track_{}.png'.format(stm, model, vinfo[pv]['savename']))
+                if pv == 'ohc':
+                    mvar = rtofs.return_gridded_ds(minfo[model]['temp'], stime, etime, lims, model)
+                    ohc = cf.ohc_surface_3d(mvar, minfo[model]['coords'], model)
+                    lonvalues = ohc.Longitude.values
+                    latvalues = ohc.Latitude.values
+                else:
+                    mvar = rtofs.return_surface_variable(minfo[model][pv], stime, etime, lims, model)
+                    lonvalues = mvar.Longitude.values
+                    latvalues = mvar.Latitude.values
+
+            savefile = os.path.join(sDir, '{}_{}_track_{}_{}-glider_comp_loc.png'.format(stm, model, vinfo[pv]['savename'],
+                                                                         stime.strftime('%Y%m%dT%H')))
             ttl = '{} {}: {}\nGlider lims: {} to {}'.format(model, vinfo[pv]['name'], stime.strftime('%Y-%m-%d %H:%M'),
                                                             t0_str, tf_str)
             plt.title(ttl, fontsize=12)
-            surfacevar_plot(fig, ax, lonvalues, latvalues, mvar.values, vinfo[pv]['cmap'], vinfo[pv]['label'],
-                            vinfo[pv]['lims'], vinfo[pv]['colorticks'])
+            if pv == 'ohc':
+                surfacevar_plot(fig, ax, lonvalues, latvalues, ohc.values, vinfo[pv]['cmap'], vinfo[pv]['label'],
+                                vinfo[pv]['lims'])
+            else:
+                surfacevar_plot(fig, ax, lonvalues, latvalues, mvar.values, vinfo[pv]['cmap'], vinfo[pv]['label'],
+                                vinfo[pv]['lims'], vinfo[pv]['colorticks'])
 
             pf.add_map_features(ax, lims, xlocs=xticks, landcolor='lightgray')
 
@@ -178,9 +239,11 @@ def main(stime, etime, region, stm, sDir):
 
 
 if __name__ == '__main__':
-    start_time = dt.datetime(2020, 8, 23, 12)
-    end_time = dt.datetime(2020, 8, 23, 12)
+    #start_time = dt.datetime(2020, 8, 23, 12)
+    #end_time = dt.datetime(2020, 8, 23, 12)
+    start_time = dt.datetime(2020, 8, 28, 12)
+    end_time = dt.datetime(2020, 8, 28, 12)
     region = 'GoMex'
     storm_name = 'Laura_2020'
-    save_dir = os.path.join('/Users/lgarzio/Documents/rucool/hurricane_glider_project', storm_name)
+    save_dir = os.path.join('/Users/garzio/Documents/rucool/hurricane_glider_project', storm_name)
     main(start_time, end_time, region, storm_name, save_dir)
