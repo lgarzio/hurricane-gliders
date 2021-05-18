@@ -96,7 +96,7 @@ def return_point(varname, start_time, end_time, target_lon, target_lat, model):
     return target_ds
 
 
-def return_surface_variable(varname, start_time, end_time, coordlims, model):
+def return_surface_variable(varname, start_time, end_time, coordlims, model, depth):
     """
     :param varname: variable name
     :param start_time: start time (datetime)
@@ -111,7 +111,7 @@ def return_surface_variable(varname, start_time, end_time, coordlims, model):
     lat = ds.Latitude.values
     lon = ds.Longitude.values
 
-    ds_surface = np.squeeze(ds[varname].sel(Depth=0.0))
+    ds_surface = np.squeeze(ds[varname].sel(Depth=depth))
     lon_ind = np.logical_and(lon > coordlims[0], lon < coordlims[1])
     lat_ind = np.logical_and(lat > coordlims[2], lat < coordlims[3])
 

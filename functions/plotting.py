@@ -7,6 +7,8 @@ Last modified: 2/19/2021
 import xarray as xr
 import numpy as np
 import matplotlib.ticker as mticker
+import matplotlib as mpl
+from matplotlib.lines import Line2D
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 import cmocean
@@ -78,3 +80,29 @@ def add_map_features(axis, axes_limits=None, xlocs=None, landcolor=None, ecolor=
 
         lev = np.arange(-9000, 9100, 100)
         axis.contourf(bath_lonsub, bath_latsub, bath_elevsub, lev, cmap=cmocean.cm.topo)
+
+
+def hurricane_intensity_cmap(categories):
+    intensity_colors = [
+        "#efefef",  # TS
+        "#ffffb2",  # cat 1
+        "#fed976",  # cat 2 "#feb24c"
+        "#e69138",  # cat 3 "#fd8d3c"
+        "#cc0000",  # cat 4 "#f03b20"
+        "#990000",  # cat 5 "#bd0026"
+    ]
+    mincat = np.nanmin(categories)
+    maxcat = np.nanmax(categories)
+    custom_colors = intensity_colors[mincat: maxcat + 1]  # make the colors span the range of data
+    hurricane_colormap = mpl.colors.ListedColormap(custom_colors)
+
+    # make custom legend
+    le = [Line2D([0], [0], marker='o', markerfacecolor='#efefef', mec='k', linestyle='none', label='TS'),
+          Line2D([0], [0], marker='o', markerfacecolor='#ffffb2', mec='k', linestyle='none', label='Cat 1'),
+          Line2D([0], [0], marker='o', markerfacecolor='#fed976', mec='k', linestyle='none', label='Cat 2'),
+          Line2D([0], [0], marker='o', markerfacecolor='#e69138', mec='k', linestyle='none', label='Cat 3'),
+          Line2D([0], [0], marker='o', markerfacecolor='#cc0000', mec='k', linestyle='none', label='Cat 4'),
+          Line2D([0], [0], marker='o', markerfacecolor='#990000', mec='k', linestyle='none', label='Cat 5')]
+    le_custom = le[mincat: maxcat + 1]  # make the legend handles span the range of data
+
+    return hurricane_colormap, le_custom

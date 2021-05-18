@@ -85,7 +85,7 @@ def return_point(varname, start_time, end_time, target_lon, target_lat):
     return target_ds
 
 
-def return_surface_variable(varname, start_time, end_time, coordlims):
+def return_surface_variable(varname, start_time, end_time, coordlims, depth):
     """
     :param varname: variable name
     :param start_time: start time (datetime)
@@ -97,7 +97,7 @@ def return_surface_variable(varname, start_time, end_time, coordlims):
     lat = ds.lat.values
     lon = ds.lon.values
 
-    ds_surface = ds[varname].sel(depth=0.0)
+    ds_surface = ds[varname].sel(depth=depth)
     lon_convert = convert_gofs_target_lon(lon)
     lon_ind = np.logical_and(lon_convert > coordlims[0], lon_convert < coordlims[1])
     lat_ind = np.logical_and(lat > coordlims[2], lat < coordlims[3])
